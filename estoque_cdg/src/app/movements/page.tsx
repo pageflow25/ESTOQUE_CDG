@@ -10,6 +10,7 @@ import { Input } from "../../components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
 import { Movement, Product, calculateInventory, calculateTotalUnits } from "../../types/inventory"
+import { MovementForm } from "../../components/movement-form"
 
 export default function MovementsPage() {
   const { data: session, status } = useSession()
@@ -19,6 +20,7 @@ export default function MovementsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState("all")
   const [isLoading, setIsLoading] = useState(true)
+  const [showMovementForm, setShowMovementForm] = useState(false)
 
   useEffect(() => {
     if (status === "loading") {
@@ -120,6 +122,49 @@ export default function MovementsPage() {
   const totalEntradas = movements.filter(m => m.type === "entrada").reduce((acc, m) => acc + m.totalUnits, 0)
   const totalSaidas = movements.filter(m => m.type === "saida").reduce((acc, m) => acc + m.totalUnits, 0)
 
+  const handleCreateMovement = (movementData: {
+    productId: string
+    type: "entrada" | "saida"
+    packageQuantity: number
+    unitQuantity: number
+    totalUnits: number
+    reason: string
+    notes?: string
+  }) => {
+    const product = products.find(p => p.id === movementData.productId)
+    
+    if (!product) {
+      console.error('Produto não encontrado')
+      return
+    }
+
+    const movement: Movement = {
+      id: Date.now().toString(),
+      ...movementData,
+      product,
+      date: new Date().toISOString().split('T')[0],
+      userId: session?.user?.id || 'current-user',
+      user: session?.user?.name || 'Usuário Atual',
+      createdAt: new Date().toISOString()
+    }
+
+    setMovements(prev => [movement, ...prev])
+    
+    // Atualizar estoque do produto
+    setProducts(prev => prev.map(p => {
+      if (p.id === movementData.productId) {
+        const newQuantity = movementData.type === "entrada" 
+          ? p.quantity + movementData.totalUnits
+          : p.quantity - movementData.totalUnits
+        
+        return { ...p, quantity: Math.max(0, newQuantity) }
+      }
+      return p
+    }))
+    
+    console.log('Movimentação criada:', movement)
+  }
+
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -145,7 +190,10 @@ export default function MovementsPage() {
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Movimentações</h1>
               <p className="mt-1 text-sm text-gray-600">Controle de entrada e saída de produtos</p>
             </div>
-            <Button className="w-full sm:w-auto">
+            <Button 
+              className="w-full sm:w-auto"
+              onClick={() => setShowMovementForm(true)}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Nova Movimentação
             </Button>
@@ -301,6 +349,33 @@ export default function MovementsPage() {
               ))
             )}
           </div>
+
+          {/* Movement Form */}
+          {showMovementForm && (
+            <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h2 className="text-lg font-semibold">Nova Movimentação</h2>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowMovementForm(false)}
+                  >
+                    ✕
+                  </Button>
+                </div>
+                <div className="p-4">
+                  <MovementForm 
+                    products={products} 
+                    onSubmit={(data) => {
+                      handleCreateMovement(data)
+                      setShowMovementForm(false)
+                    }} 
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

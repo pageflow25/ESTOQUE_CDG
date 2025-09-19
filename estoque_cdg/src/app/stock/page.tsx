@@ -3,7 +3,18 @@
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { Package, Plus, Search, Edit, Trash2, Tag, Box } from "lucide-react"
+import { 
+  Package, 
+  Search, 
+  Filter, 
+  AlertTriangle, 
+  TrendingUp, 
+  TrendingDown, 
+  BarChart3,
+  Tag,
+  Box,
+  Archive
+} from "lucide-react"
 import { Navbar } from "../../components/navbar"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
@@ -11,17 +22,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
 import { Product, Category, calculateInventory } from "../../types/inventory"
-import { ProductForm } from "../../components/product-form"
 
-export default function ProductsPage() {
+export default function StockPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [filterCategory, setFilterCategory] = useState("all")
+  const [filterStock, setFilterStock] = useState("all") // all, low, out
   const [isLoading, setIsLoading] = useState(true)
-  const [showProductForm, setShowProductForm] = useState(false)
 
   useEffect(() => {
     if (status === "loading") {
@@ -66,7 +76,7 @@ export default function ProductsPage() {
         }
       ]
 
-      // Simulação de dados de produtos com embalagens
+      // Simulação de produtos com diferentes níveis de estoque
       const mockProducts: Product[] = [
         {
           id: "1",
@@ -75,8 +85,8 @@ export default function ProductsPage() {
           description: "Papel A4 branco 75g/m²",
           categoryId: "1",
           category: mockCategories[0],
-          unitsPerPackage: 500, // 500 folhas por resma
-          quantity: 2300, // Total de folhas no estoque
+          unitsPerPackage: 500,
+          quantity: 2300,
           price: 25.90,
           isActive: true,
           createdAt: "2024-01-01",
@@ -89,8 +99,8 @@ export default function ProductsPage() {
           description: "Detergente neutro 500ml",
           categoryId: "2",
           category: mockCategories[1],
-          unitsPerPackage: 12, // 12 unidades por caixa
-          quantity: 87, // Total de unidades no estoque
+          unitsPerPackage: 12,
+          quantity: 5, // Estoque baixo
           price: 3.50,
           isActive: true,
           createdAt: "2024-01-01",
@@ -103,9 +113,23 @@ export default function ProductsPage() {
           description: "Mouse óptico com fio USB",
           categoryId: "3",
           category: mockCategories[2],
-          unitsPerPackage: 1, // Vendido individualmente
+          unitsPerPackage: 1,
           quantity: 15,
           price: 29.90,
+          isActive: true,
+          createdAt: "2024-01-01",
+          updatedAt: "2024-01-01"
+        },
+        {
+          id: "4",
+          name: "Caneta Esferográfica Azul",
+          code: "PAP002",
+          description: "Caneta esferográfica ponta média",
+          categoryId: "1",
+          category: mockCategories[0],
+          unitsPerPackage: 50,
+          quantity: 0, // Sem estoque
+          price: 1.50,
           isActive: true,
           createdAt: "2024-01-01",
           updatedAt: "2024-01-01"
@@ -121,6 +145,22 @@ export default function ProductsPage() {
     }
   }
 
+  // Função para determinar status do estoque
+  const getStockStatus = (quantity: number, unitsPerPackage: number = 1) => {
+    if (quantity === 0) {
+      return { status: 'out', label: 'Sem Estoque', color: 'text-red-600' }
+    }
+    
+    // Considera estoque baixo quando há menos de 2 embalagens completas ou menos de 10 unidades
+    const lowThreshold = unitsPerPackage > 1 ? unitsPerPackage * 2 : 10
+    
+    if (quantity <= lowThreshold) {
+      return { status: 'low', label: 'Estoque Baixo', color: 'text-yellow-600' }
+    }
+    
+    return { status: 'good', label: 'Estoque OK', color: 'text-green-600' }
+  }
+
   const filteredProducts = products.filter(product => {
     const matchesSearch = 
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -129,19 +169,24 @@ export default function ProductsPage() {
     
     const matchesCategory = filterCategory === "all" || product.categoryId === filterCategory
     
-    return matchesSearch && matchesCategory
+    const stockStatus = getStockStatus(product.quantity, product.unitsPerPackage).status
+    const matchesStock = 
+      filterStock === "all" || 
+      (filterStock === "low" && stockStatus === "low") ||
+      (filterStock === "out" && stockStatus === "out")
+    
+    return matchesSearch && matchesCategory && matchesStock
   })
 
-  const handleCreateProduct = (newProduct: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const product: Product = {
-      ...newProduct,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-    
-    setProducts(prev => [...prev, product])
-    console.log('Produto criado:', product)
+  // Estatísticas gerais
+  const stats = {
+    totalProducts: products.length,
+    outOfStock: products.filter(p => p.quantity === 0).length,
+    lowStock: products.filter(p => {
+      const { status } = getStockStatus(p.quantity, p.unitsPerPackage)
+      return status === "low"
+    }).length,
+    totalValue: products.reduce((acc, p) => acc + (p.quantity * p.price), 0)
   }
 
   if (status === "loading") {
@@ -166,16 +211,70 @@ export default function ProductsPage() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Produtos</h1>
-              <p className="mt-1 text-sm text-gray-600">Gerencie os produtos do estoque</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Controle de Estoque</h1>
+              <p className="mt-1 text-sm text-gray-600">Visão geral do estoque atual</p>
             </div>
-            <Button 
-              className="w-full sm:w-auto"
-              onClick={() => setShowProductForm(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Produto
-            </Button>
+          </div>
+
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Archive className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total de Produtos</p>
+                    <p className="text-2xl font-bold text-blue-600">{stats.totalProducts}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <AlertTriangle className="h-8 w-8 text-red-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Sem Estoque</p>
+                    <p className="text-2xl font-bold text-red-600">{stats.outOfStock}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <TrendingDown className="h-8 w-8 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Estoque Baixo</p>
+                    <p className="text-2xl font-bold text-yellow-600">{stats.lowStock}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <BarChart3 className="h-8 w-8 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Valor Total</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      R$ {stats.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Filters */}
@@ -185,7 +284,7 @@ export default function ProductsPage() {
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    placeholder="Buscar por nome, código ou categoria..."
+                    placeholder="Buscar produtos..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -195,7 +294,7 @@ export default function ProductsPage() {
                   <Select value={filterCategory} onValueChange={setFilterCategory}>
                     <SelectTrigger>
                       <Tag className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Filtrar categoria" />
+                      <SelectValue placeholder="Categoria" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todas as categorias</SelectItem>
@@ -207,15 +306,28 @@ export default function ProductsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="w-full sm:w-48">
+                  <Select value={filterStock} onValueChange={setFilterStock}>
+                    <SelectTrigger>
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Estoque" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os produtos</SelectItem>
+                      <SelectItem value="low">Estoque baixo</SelectItem>
+                      <SelectItem value="out">Sem estoque</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Desktop Table View */}
+          {/* Stock Table - Desktop */}
           <div className="hidden md:block">
             <Card>
               <CardHeader>
-                <CardTitle>Lista de Produtos</CardTitle>
+                <CardTitle>Produtos em Estoque</CardTitle>
                 <CardDescription>
                   {filteredProducts.length} produto(s) encontrado(s)
                 </CardDescription>
@@ -224,36 +336,42 @@ export default function ProductsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Código</TableHead>
-                      <TableHead>Nome</TableHead>
+                      <TableHead>Produto</TableHead>
                       <TableHead>Categoria</TableHead>
                       <TableHead>Embalagem</TableHead>
-                      <TableHead className="text-right">Estoque</TableHead>
-                      <TableHead className="text-right">Preço</TableHead>
+                      <TableHead className="text-right">Estoque Atual</TableHead>
+                      <TableHead className="text-right">Valor Unit.</TableHead>
+                      <TableHead className="text-right">Valor Total</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
+                        <TableCell colSpan={7} className="text-center py-8">
                           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto"></div>
                         </TableCell>
                       </TableRow>
                     ) : filteredProducts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                           Nenhum produto encontrado
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredProducts.map((product) => {
                         const inventory = calculateInventory(product.quantity, product.unitsPerPackage)
+                        const stockStatus = getStockStatus(product.quantity, product.unitsPerPackage)
+                        const totalValue = product.quantity * product.price
+                        
                         return (
                           <TableRow key={product.id}>
-                            <TableCell className="font-medium">{product.code}</TableCell>
-                            <TableCell>{product.name}</TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{product.name}</div>
+                                <div className="text-sm text-gray-500">{product.code}</div>
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                                 {product.category?.name}
@@ -285,24 +403,17 @@ export default function ProductsPage() {
                             <TableCell className="text-right">
                               R$ {product.price.toFixed(2)}
                             </TableCell>
-                            <TableCell>
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                product.isActive 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {product.isActive ? 'Ativo' : 'Inativo'}
-                              </span>
+                            <TableCell className="text-right font-semibold">
+                              R$ {totalValue.toFixed(2)}
                             </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button variant="outline" size="sm">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
+                            <TableCell>
+                              <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                                stockStatus.status === 'out' ? 'bg-red-100 text-red-800' :
+                                stockStatus.status === 'low' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {stockStatus.label}
+                              </span>
                             </TableCell>
                           </TableRow>
                         )
@@ -314,7 +425,7 @@ export default function ProductsPage() {
             </Card>
           </div>
 
-          {/* Mobile Card View */}
+          {/* Mobile Cards */}
           <div className="md:hidden space-y-4">
             {isLoading ? (
               <Card>
@@ -332,6 +443,9 @@ export default function ProductsPage() {
             ) : (
               filteredProducts.map((product) => {
                 const inventory = calculateInventory(product.quantity, product.unitsPerPackage)
+                const stockStatus = getStockStatus(product.quantity, product.unitsPerPackage)
+                const totalValue = product.quantity * product.price
+                
                 return (
                   <Card key={product.id}>
                     <CardContent className="p-4">
@@ -341,29 +455,19 @@ export default function ProductsPage() {
                           <p className="text-sm text-gray-600">{product.code}</p>
                         </div>
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          product.isActive 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
+                          stockStatus.status === 'out' ? 'bg-red-100 text-red-800' :
+                          stockStatus.status === 'low' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
                         }`}>
-                          {product.isActive ? 'Ativo' : 'Inativo'}
+                          {stockStatus.label}
                         </span>
                       </div>
                       
-                      <div className="space-y-2 mb-4">
+                      <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Categoria:</span>
                           <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                             {product.category?.name}
-                          </span>
-                        </div>
-                        
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Embalagem:</span>
-                          <span className="font-medium">
-                            {product.unitsPerPackage > 1 ? 
-                              `${product.unitsPerPackage} un/emb` : 
-                              'Individual'
-                            }
                           </span>
                         </div>
                         
@@ -386,20 +490,9 @@ export default function ProductsPage() {
                         </div>
                         
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Preço:</span>
-                          <span className="font-medium">R$ {product.price.toFixed(2)}</span>
+                          <span className="text-gray-600">Valor Total:</span>
+                          <span className="font-semibold">R$ {totalValue.toFixed(2)}</span>
                         </div>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <Edit className="h-4 w-4 mr-2" />
-                          Editar
-                        </Button>
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Excluir
-                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -408,14 +501,6 @@ export default function ProductsPage() {
             )}
           </div>
         </div>
-
-        {/* Product Form Modal */}
-        <ProductForm
-          isOpen={showProductForm}
-          onClose={() => setShowProductForm(false)}
-          categories={categories}
-          onSubmit={handleCreateProduct}
-        />
       </div>
     </div>
   )
