@@ -69,7 +69,7 @@ async function main() {
 
   // Função auxiliar para obter ou criar categoria
   async function getOrCreateCategory(name: string) {
-    if (!name) return null
+    if (!name) { return null }
     let cat = await prisma.category.findFirst({ where: { name } })
     if (!cat) {
       cat = await prisma.category.create({ data: { name, description: '', isActive: true } })

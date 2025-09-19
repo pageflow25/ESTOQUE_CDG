@@ -48,92 +48,20 @@ export default function StockPage() {
 
   const fetchData = async () => {
     try {
-      // Simulação de dados de categorias
-      const mockCategories: Category[] = [
-        {
-          id: "1",
-          name: "Papelaria",
-          description: "Produtos de papel e escritório",
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        },
-        {
-          id: "2", 
-          name: "Material de Limpeza",
-          description: "Produtos para limpeza e higiene",
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        },
-        {
-          id: "3",
-          name: "Eletrônicos",
-          description: "Equipamentos e acessórios eletrônicos",
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        }
-      ]
+      // Buscar categorias e produtos da API (Postgres via Prisma)
+      const [catRes, prodRes] = await Promise.all([
+        fetch('/api/categories'),
+        fetch('/api/products')
+      ])
 
-      // Simulação de produtos com diferentes níveis de estoque
-      const mockProducts: Product[] = [
-        {
-          id: "1",
-          name: "Papel A4 Chamex",
-          code: "PAP001",
-          description: "Papel A4 branco 75g/m²",
-          categoryId: "1",
-          category: mockCategories[0],
-          quantity: 2300,
-          price: 25.90,
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        },
-        {
-          id: "2",
-          name: "Detergente Líquido",
-          code: "LMP001", 
-          description: "Detergente neutro 500ml",
-          categoryId: "2",
-          category: mockCategories[1],
-          quantity: 5, // Estoque baixo
-          price: 3.50,
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        },
-        {
-          id: "3",
-          name: "Mouse Óptico USB",
-          code: "ELE001",
-          description: "Mouse óptico com fio USB",
-          categoryId: "3",
-          category: mockCategories[2],
-          quantity: 15,
-          price: 29.90,
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        },
-        {
-          id: "4",
-          name: "Caneta Esferográfica Azul",
-          code: "PAP002",
-          description: "Caneta esferográfica ponta média",
-          categoryId: "1",
-          category: mockCategories[0],
-          quantity: 0, // Sem estoque
-          price: 1.50,
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        }
-      ]
+  if (!catRes.ok) { throw new Error('Erro ao carregar categorias') }
+  if (!prodRes.ok) { throw new Error('Erro ao carregar produtos') }
 
-      setCategories(mockCategories)
-      setProducts(mockProducts)
+      const categoriesData: Category[] = await catRes.json()
+      const productsData: Product[] = await prodRes.json()
+
+      setCategories(categoriesData)
+      setProducts(productsData)
     } catch (error) {
       console.error("Erro ao carregar dados:", error)
     } finally {
