@@ -3,28 +3,19 @@
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { ArrowUpDown, Plus, Search, Filter, TrendingUp, TrendingDown, Package } from "lucide-react"
-import { Navbar } from "@/components/navbar"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ArrowUpDown, Plus, Search, Filter, TrendingUp, TrendingDown, Package, Box } from "lucide-react"
+import { Navbar } from "../../components/navbar"
+import { Button } from "../../components/ui/button"
+import { Input } from "../../components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
-
-interface Movement {
-  id: string
-  type: "entrada" | "saida"
-  productName: string
-  productCode: string
-  quantity: number
-  date: string
-  user: string
-  reason: string
-}
+import { Movement, Product, calculateInventory, calculateTotalUnits } from "../../types/inventory"
 
 export default function MovementsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [movements, setMovements] = useState<Movement[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState("all")
   const [isLoading, setIsLoading] = useState(true)
@@ -44,29 +35,70 @@ export default function MovementsPage() {
 
   const fetchMovements = async () => {
     try {
-      // Simulação de dados
-      setMovements([
+      // Simulação de produtos
+      const mockProducts: Product[] = [
+        {
+          id: "1",
+          name: "Papel A4 Chamex",
+          code: "PAP001",
+          categoryId: "1",
+          unitsPerPackage: 500,
+          quantity: 2300,
+          price: 25.90,
+          isActive: true,
+          createdAt: "2024-01-01",
+          updatedAt: "2024-01-01"
+        },
+        {
+          id: "2",
+          name: "Detergente Líquido",
+          code: "LMP001",
+          categoryId: "2", 
+          unitsPerPackage: 12,
+          quantity: 87,
+          price: 3.50,
+          isActive: true,
+          createdAt: "2024-01-01",
+          updatedAt: "2024-01-01"
+        }
+      ]
+
+      // Simulação de movimentações com novo formato
+      const mockMovements: Movement[] = [
         {
           id: "1",
           type: "entrada",
-          productName: "Produto A",
-          productCode: "PROD001",
-          quantity: 10,
+          productId: "1",
+          product: mockProducts[0],
+          packageQuantity: 4, // 4 resmas
+          unitQuantity: 300, // mais 300 folhas avulsas
+          totalUnits: calculateTotalUnits(4, 300, 500), // 2300 folhas total
           date: "2024-01-15",
+          userId: "user1",
           user: "João Silva",
-          reason: "Compra"
+          reason: "Compra",
+          notes: "Fornecedor XYZ",
+          createdAt: "2024-01-15T10:00:00Z"
         },
         {
           id: "2",
           type: "saida",
-          productName: "Produto B",
-          productCode: "PROD002",
-          quantity: 5,
+          productId: "2",
+          product: mockProducts[1],
+          packageQuantity: 2, // 2 caixas
+          unitQuantity: 3, // mais 3 unidades avulsas
+          totalUnits: calculateTotalUnits(2, 3, 12), // 27 unidades total
           date: "2024-01-14",
+          userId: "user2",
           user: "Maria Santos",
-          reason: "Venda"
+          reason: "Venda",
+          notes: "Cliente ABC",
+          createdAt: "2024-01-14T14:30:00Z"
         }
-      ])
+      ]
+
+      setProducts(mockProducts)
+      setMovements(mockMovements)
     } catch (error) {
       console.error("Erro ao carregar movimentações:", error)
     } finally {
@@ -76,8 +108,8 @@ export default function MovementsPage() {
 
   const filteredMovements = movements.filter(movement => {
     const matchesSearch = 
-      movement.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.productCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.product?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.product?.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       movement.user.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesFilter = filterType === "all" || movement.type === filterType
@@ -85,8 +117,8 @@ export default function MovementsPage() {
     return matchesSearch && matchesFilter
   })
 
-  const totalEntradas = movements.filter(m => m.type === "entrada").reduce((acc, m) => acc + m.quantity, 0)
-  const totalSaidas = movements.filter(m => m.type === "saida").reduce((acc, m) => acc + m.quantity, 0)
+  const totalEntradas = movements.filter(m => m.type === "entrada").reduce((acc, m) => acc + m.totalUnits, 0)
+  const totalSaidas = movements.filter(m => m.type === "saida").reduce((acc, m) => acc + m.totalUnits, 0)
 
   if (status === "loading") {
     return (
@@ -231,20 +263,28 @@ export default function MovementsPage() {
                         </div>
                         <div>
                           <h3 className="text-sm font-semibold text-gray-900">
-                            {movement.productName}
+                            {movement.product?.name}
                           </h3>
-                          <p className="text-sm text-gray-600">{movement.productCode}</p>
+                          <p className="text-sm text-gray-600">{movement.product?.code}</p>
                         </div>
                       </div>
                       
                       <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
                         <div className="text-sm">
-                          <span className="text-gray-600">Quantidade: </span>
-                          <span className={`font-semibold ${
+                          <span className="text-gray-600">Movimento: </span>
+                          <div className={`font-semibold ${
                             movement.type === "entrada" ? "text-green-600" : "text-red-600"
                           }`}>
-                            {movement.type === "entrada" ? "+" : "-"}{movement.quantity}
-                          </span>
+                            {movement.type === "entrada" ? "+" : "-"}
+                            {movement.product?.unitsPerPackage && movement.product.unitsPerPackage > 1 ? (
+                              <>
+                                <div>{movement.packageQuantity} emb + {movement.unitQuantity} un</div>
+                                <div className="text-xs opacity-75">({movement.totalUnits} total)</div>
+                              </>
+                            ) : (
+                              <span>{movement.totalUnits} un</span>
+                            )}
+                          </div>
                         </div>
                         <div className="text-sm text-gray-600">
                           <p>{movement.user}</p>
