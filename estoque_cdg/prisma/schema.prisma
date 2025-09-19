@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  material    String   // Tipo de material (papel, tinta, etc.)
+  format      String   // Formato (A4, A3, etc.)
+  unit        String   // Unidade (un, kg, m, etc.)
+  minStock    Int      @default(0) // Estoque mínimo
+  currentStock Int     @default(0) // Estoque atual
+  unitPrice   Float    @default(0)
+  location    String?  // Localização no estoque
+  barcode     String?  @unique
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  movements Movement[]
+
+  @@map("products")
+}
+
+model Movement {
+  id          String      @id @default(cuid())
+  productId   String
+  type        MovementType // ENTRADA ou SAIDA
+  quantity    Int
+  unitPrice   Float
+  totalPrice  Float
+  reason      String      // Motivo da movimentação
+  reference   String?     // Número da nota fiscal, pedido, etc.
+  date        DateTime    @default(now())
+  userId      String?     // Usuário responsável
+  createdAt   DateTime    @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("movements")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum MovementType {
+  ENTRADA
+  SAIDA
+}
