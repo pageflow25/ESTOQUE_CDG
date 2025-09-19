@@ -83,6 +83,8 @@ export default function MovementsPage() {
     packageQuantity: number
     unitQuantity: number
     totalUnits: number
+    unitsPerPackage: number
+    packageType?: string
     reason: string
     notes?: string
   }) => {
@@ -287,9 +289,9 @@ export default function MovementsPage() {
                             movement.type === "entrada" ? "text-green-600" : "text-red-600"
                           }`}>
                             {movement.type === "entrada" ? "+" : "-"}
-                            {movement.product?.unitsPerPackage && movement.product.unitsPerPackage > 1 ? (
+                            {movement.unitsPerPackage && movement.unitsPerPackage > 1 ? (
                               <>
-                                <div>{movement.packageQuantity} emb + {movement.unitQuantity} un</div>
+                                <div>{movement.packageQuantity} {movement.packageType} + {movement.unitQuantity} un</div>
                                 <div className="text-xs opacity-75">({movement.totalUnits} total)</div>
                               </>
                             ) : (

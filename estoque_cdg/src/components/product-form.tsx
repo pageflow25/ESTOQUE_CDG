@@ -23,7 +23,6 @@ export function ProductForm({ isOpen, onClose, categories, initialProduct = null
     code: initialProduct?.code || '',
     description: initialProduct?.description || '',
     categoryId: initialProduct?.categoryId || '',
-    unitsPerPackage: initialProduct?.unitsPerPackage ?? 1,
     quantity: initialProduct?.quantity ?? 0,
     price: initialProduct?.price ?? 0,
     isActive: initialProduct?.isActive ?? true
@@ -36,7 +35,6 @@ export function ProductForm({ isOpen, onClose, categories, initialProduct = null
       code: initialProduct?.code || '',
       description: initialProduct?.description || '',
       categoryId: initialProduct?.categoryId || '',
-      unitsPerPackage: initialProduct?.unitsPerPackage ?? 1,
       quantity: initialProduct?.quantity ?? 0,
       price: initialProduct?.price ?? 0,
       isActive: initialProduct?.isActive ?? true
@@ -74,7 +72,6 @@ export function ProductForm({ isOpen, onClose, categories, initialProduct = null
       code: '',
       description: '',
       categoryId: '',
-      unitsPerPackage: 1,
       quantity: 0,
       price: 0,
       isActive: true
@@ -151,22 +148,6 @@ export function ProductForm({ isOpen, onClose, categories, initialProduct = null
             </Select>
           </div>
 
-          {/* Unidades por Embalagem */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Unidades por Embalagem
-            </label>
-            <Input
-              type="number"
-              min="1"
-              value={formData.unitsPerPackage}
-              onChange={(e) => handleChange('unitsPerPackage', parseInt(e.target.value) || 1)}
-              placeholder="1"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Deixe 1 para produtos vendidos individualmente
-            </p>
-          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -208,21 +189,7 @@ export function ProductForm({ isOpen, onClose, categories, initialProduct = null
           </div>
         </div>
 
-        {/* Preview das informações */}
-        {formData.name && formData.unitsPerPackage > 1 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">Preview da Embalagem</h4>
-            <p className="text-sm text-blue-700">
-              Produto: <strong>{formData.name}</strong><br/>
-              Embalagem: <strong>{formData.unitsPerPackage} unidades por embalagem</strong><br/>
-              {formData.quantity > 0 && (
-                <>
-                  Estoque: <strong>{Math.floor(formData.quantity / formData.unitsPerPackage)} embalagens + {formData.quantity % formData.unitsPerPackage} unidades</strong>
-                </>
-              )}
-            </p>
-          </div>
-        )}
+
 
         {/* Status */}
         <div className="flex items-center gap-3">

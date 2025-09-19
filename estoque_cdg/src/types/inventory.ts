@@ -23,8 +23,6 @@ export interface Product {
   description?: string
   categoryId: string
   category?: Category
-  packagingUnit?: PackagingUnit
-  unitsPerPackage: number // Padrão: 1 para produtos vendidos individualmente
   quantity: number // Quantidade total em unidades
   price: number
   isActive: boolean
@@ -37,10 +35,12 @@ export interface Movement {
   type: "entrada" | "saida"
   productId: string
   product?: Product
-  // Quantidades
+  // Quantidades com embalagem variável
   packageQuantity: number // Número de caixas/pacotes
-  unitQuantity: number // Unidades individuais
-  totalUnits: number // Total calculado (packageQuantity * unitsPerPackage + unitQuantity)
+  unitsPerPackage: number // Quantas unidades tem em cada embalagem (variável por movimentação)
+  unitQuantity: number // Unidades individuais (avulsas)
+  totalUnits: number // Total calculado: (packageQuantity * unitsPerPackage) + unitQuantity
+  packageType?: string // Tipo da embalagem: "Caixa", "Resma", "Rolo", etc.
   // Dados adicionais
   date: string
   userId: string
@@ -89,4 +89,14 @@ export function calculateTotalUnits(
   unitsPerPackage: number = 1
 ): number {
   return (packageQuantity * unitsPerPackage) + unitQuantity
+}
+
+// Função para exibir estoque de forma inteligente baseado na última movimentação
+export function displayStock(product: Product, lastMovement?: Movement): string {
+  if (!lastMovement || lastMovement.unitsPerPackage <= 1) {
+    return `${product.quantity} un`
+  }
+
+  const calc = calculateInventory(product.quantity, lastMovement.unitsPerPackage)
+  return `${calc.packages} ${lastMovement.packageType || 'emb'} + ${calc.remainingUnits} un (${calc.totalUnits} total)`
 }

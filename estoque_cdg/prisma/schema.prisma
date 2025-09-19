@@ -36,17 +36,16 @@ model Category {
 }
 
 model Product {
-  id              String   @id @default(cuid())
-  name            String
-  code            String   @unique
-  description     String?
-  categoryId      String
-  unitsPerPackage Int      @default(1) // Unidades por embalagem
-  quantity        Int      @default(0) // Quantidade total em unidades
-  price           Float    @default(0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  categoryId  String
+  quantity    Int      @default(0) // Quantidade total em unidades
+  price       Float    @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   category  Category   @relation(fields: [categoryId], references: [id])
   movements Movement[]
@@ -55,18 +54,20 @@ model Product {
 }
 
 model Movement {
-  id              String      @id @default(cuid())
-  productId       String
-  type            MovementType // ENTRADA ou SAIDA
-  packageQuantity Int         @default(0) // Número de embalagens
-  unitQuantity    Int         @default(0) // Unidades individuais
-  totalUnits      Int         // Total calculado
-  date            DateTime    @default(now())
-  userId          String?     // Usuário responsável
-  user            String      @default("Sistema") // Nome do usuário
-  reason          String      // Motivo da movimentação
-  notes           String?     // Observações adicionais
-  createdAt       DateTime    @default(now())
+  id                String      @id @default(cuid())
+  productId         String
+  type              MovementType // ENTRADA ou SAIDA
+  packageQuantity   Int         @default(0) // Número de embalagens/caixas
+  unitsPerPackage   Int         @default(1) // Quantas unidades tem em cada embalagem (variável por movimentação)
+  unitQuantity      Int         @default(0) // Unidades individuais (avulsas)
+  totalUnits        Int         // Total calculado: (packageQuantity * unitsPerPackage) + unitQuantity
+  packageType       String?     // Tipo da embalagem: "Caixa", "Resma", "Rolo", etc.
+  date              DateTime    @default(now())
+  userId            String?     // Usuário responsável
+  user              String      @default("Sistema") // Nome do usuário
+  reason            String      // Motivo da movimentação
+  notes             String?     // Observações adicionais
+  createdAt         DateTime    @default(now())
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 

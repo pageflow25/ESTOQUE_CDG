@@ -85,7 +85,6 @@ export default function StockPage() {
           description: "Papel A4 branco 75g/m²",
           categoryId: "1",
           category: mockCategories[0],
-          unitsPerPackage: 500,
           quantity: 2300,
           price: 25.90,
           isActive: true,
@@ -99,7 +98,6 @@ export default function StockPage() {
           description: "Detergente neutro 500ml",
           categoryId: "2",
           category: mockCategories[1],
-          unitsPerPackage: 12,
           quantity: 5, // Estoque baixo
           price: 3.50,
           isActive: true,
@@ -113,7 +111,6 @@ export default function StockPage() {
           description: "Mouse óptico com fio USB",
           categoryId: "3",
           category: mockCategories[2],
-          unitsPerPackage: 1,
           quantity: 15,
           price: 29.90,
           isActive: true,
@@ -127,7 +124,6 @@ export default function StockPage() {
           description: "Caneta esferográfica ponta média",
           categoryId: "1",
           category: mockCategories[0],
-          unitsPerPackage: 50,
           quantity: 0, // Sem estoque
           price: 1.50,
           isActive: true,
@@ -145,16 +141,14 @@ export default function StockPage() {
     }
   }
 
-  // Função para determinar status do estoque
-  const getStockStatus = (quantity: number, unitsPerPackage: number = 1) => {
+  // Função para determinar status do estoque (simplificada)
+  const getStockStatus = (quantity: number) => {
     if (quantity === 0) {
       return { status: 'out', label: 'Sem Estoque', color: 'text-red-600' }
     }
     
-    // Considera estoque baixo quando há menos de 2 embalagens completas ou menos de 10 unidades
-    const lowThreshold = unitsPerPackage > 1 ? unitsPerPackage * 2 : 10
-    
-    if (quantity <= lowThreshold) {
+    // Considera estoque baixo quando há menos de 10 unidades
+    if (quantity <= 10) {
       return { status: 'low', label: 'Estoque Baixo', color: 'text-yellow-600' }
     }
     
@@ -169,7 +163,7 @@ export default function StockPage() {
     
     const matchesCategory = filterCategory === "all" || product.categoryId === filterCategory
     
-    const stockStatus = getStockStatus(product.quantity, product.unitsPerPackage).status
+    const stockStatus = getStockStatus(product.quantity).status
     const matchesStock = 
       filterStock === "all" || 
       (filterStock === "low" && stockStatus === "low") ||
@@ -183,7 +177,7 @@ export default function StockPage() {
     totalProducts: products.length,
     outOfStock: products.filter(p => p.quantity === 0).length,
     lowStock: products.filter(p => {
-      const { status } = getStockStatus(p.quantity, p.unitsPerPackage)
+      const { status } = getStockStatus(p.quantity)
       return status === "low"
     }).length,
     totalValue: products.reduce((acc, p) => acc + (p.quantity * p.price), 0)
@@ -360,8 +354,7 @@ export default function StockPage() {
                       </TableRow>
                     ) : (
                       filteredProducts.map((product) => {
-                        const inventory = calculateInventory(product.quantity, product.unitsPerPackage)
-                        const stockStatus = getStockStatus(product.quantity, product.unitsPerPackage)
+                        const stockStatus = getStockStatus(product.quantity)
                         const totalValue = product.quantity * product.price
                         
                         return (
@@ -378,27 +371,10 @@ export default function StockPage() {
                               </span>
                             </TableCell>
                             <TableCell>
-                              {product.unitsPerPackage > 1 ? (
-                                <span className="text-sm text-gray-600">
-                                  {product.unitsPerPackage} un/emb
-                                </span>
-                              ) : (
-                                <span className="text-sm text-gray-400">Individual</span>
-                              )}
+                              <span className="text-sm text-gray-400">-</span>
                             </TableCell>
                             <TableCell className="text-right">
-                              {product.unitsPerPackage > 1 ? (
-                                <div className="text-sm">
-                                  <div className="font-semibold">
-                                    {inventory.packages} emb + {inventory.remainingUnits} un
-                                  </div>
-                                  <div className="text-gray-500">
-                                    ({inventory.totalUnits} total)
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="font-semibold">{product.quantity} un</span>
-                              )}
+                              <span className="font-semibold">{product.quantity} un</span>
                             </TableCell>
                             <TableCell className="text-right">
                               R$ {product.price.toFixed(2)}
@@ -442,8 +418,7 @@ export default function StockPage() {
               </Card>
             ) : (
               filteredProducts.map((product) => {
-                const inventory = calculateInventory(product.quantity, product.unitsPerPackage)
-                const stockStatus = getStockStatus(product.quantity, product.unitsPerPackage)
+                const stockStatus = getStockStatus(product.quantity)
                 const totalValue = product.quantity * product.price
                 
                 return (
@@ -474,18 +449,7 @@ export default function StockPage() {
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Estoque:</span>
                           <div className="text-right">
-                            {product.unitsPerPackage > 1 ? (
-                              <>
-                                <div className="font-semibold">
-                                  {inventory.packages} emb + {inventory.remainingUnits} un
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  ({inventory.totalUnits} total)
-                                </div>
-                              </>
-                            ) : (
-                              <span className="font-semibold">{product.quantity} un</span>
-                            )}
+                            <span className="font-semibold">{product.quantity} un</span>
                           </div>
                         </div>
                         

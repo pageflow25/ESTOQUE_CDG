@@ -37,7 +37,6 @@ CREATE TABLE "products" (
     "code" TEXT NOT NULL,
     "description" TEXT,
     "categoryId" TEXT NOT NULL,
-    "unitsPerPackage" INTEGER NOT NULL DEFAULT 1,
     "quantity" INTEGER NOT NULL DEFAULT 0,
     "price" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -53,8 +52,10 @@ CREATE TABLE "movements" (
     "productId" TEXT NOT NULL,
     "type" "MovementType" NOT NULL,
     "packageQuantity" INTEGER NOT NULL DEFAULT 0,
+    "unitsPerPackage" INTEGER NOT NULL DEFAULT 1,
     "unitQuantity" INTEGER NOT NULL DEFAULT 0,
     "totalUnits" INTEGER NOT NULL,
+    "packageType" TEXT,
     "date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "userId" TEXT,
     "user" TEXT NOT NULL DEFAULT 'Sistema',
@@ -80,9 +81,15 @@ INSERT INTO "categories" ("id", "name", "description", "isActive", "createdAt", 
 ('cat_eletronicos', 'Eletrônicos', 'Equipamentos e acessórios eletrônicos', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- Inserir produtos de exemplo
-INSERT INTO "products" ("id", "name", "code", "description", "categoryId", "unitsPerPackage", "quantity", "price", "isActive", "createdAt", "updatedAt") VALUES 
-('prod_papel_a4', 'Papel A4 Chamex', 'PAP001', 'Papel A4 branco 75g/m²', 'cat_papelaria', 500, 2300, 25.90, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('prod_detergente', 'Detergente Líquido', 'LMP001', 'Detergente neutro 500ml', 'cat_limpeza', 12, 87, 3.50, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('prod_mouse', 'Mouse Óptico USB', 'ELE001', 'Mouse óptico com fio USB', 'cat_eletronicos', 1, 15, 29.90, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "products" ("id", "name", "code", "description", "categoryId", "quantity", "price", "isActive", "createdAt", "updatedAt") VALUES 
+('prod_papel_a4', 'Papel A4 Chamex', 'PAP001', 'Papel A4 branco 75g/m²', 'cat_papelaria', 2300, 25.90, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('prod_detergente', 'Detergente Líquido', 'LMP001', 'Detergente neutro 500ml', 'cat_limpeza', 87, 3.50, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('prod_mouse', 'Mouse Óptico USB', 'ELE001', 'Mouse óptico com fio USB', 'cat_eletronicos', 15, 29.90, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- Inserir movimentações de exemplo para demonstrar embalagens variáveis
+INSERT INTO "movements" ("id", "productId", "type", "packageQuantity", "unitsPerPackage", "unitQuantity", "totalUnits", "packageType", "reason", "user", "createdAt") VALUES
+('mov_papel_entrada', 'prod_papel_a4', 'ENTRADA', 4, 500, 300, 2300, 'Resma', 'Compra fornecedor', 'Sistema', CURRENT_TIMESTAMP),
+('mov_detergente_entrada', 'prod_detergente', 'ENTRADA', 7, 12, 3, 87, 'Caixa', 'Reposição estoque', 'Sistema', CURRENT_TIMESTAMP),
+('mov_mouse_entrada', 'prod_mouse', 'ENTRADA', 0, 1, 15, 15, 'Unidade', 'Compra avulsa', 'Sistema', CURRENT_TIMESTAMP);
 
 COMMIT;

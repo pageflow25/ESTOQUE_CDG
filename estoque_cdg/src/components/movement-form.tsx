@@ -14,8 +14,10 @@ interface MovementFormProps {
     productId: string
     type: "entrada" | "saida"
     packageQuantity: number
+    unitsPerPackage: number
     unitQuantity: number
     totalUnits: number
+    packageType?: string
     reason: string
     notes?: string
   }) => void
@@ -25,14 +27,14 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
   const [selectedProductId, setSelectedProductId] = useState("")
   const [movementType, setMovementType] = useState<"entrada" | "saida">("entrada")
   const [packageQuantity, setPackageQuantity] = useState(0)
+  const [unitsPerPackage, setUnitsPerPackage] = useState(1)
   const [unitQuantity, setUnitQuantity] = useState(0)
+  const [packageType, setPackageType] = useState("")
   const [reason, setReason] = useState("")
   const [notes, setNotes] = useState("")
 
   const selectedProduct = products.find(p => p.id === selectedProductId)
-  const totalUnits = selectedProduct 
-    ? calculateTotalUnits(packageQuantity, unitQuantity, selectedProduct.unitsPerPackage)
-    : 0
+  const totalUnits = calculateTotalUnits(packageQuantity, unitQuantity, unitsPerPackage)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,8 +47,10 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
       productId: selectedProductId,
       type: movementType,
       packageQuantity,
+      unitsPerPackage,
       unitQuantity,
       totalUnits,
+      packageType: packageType || undefined,
       reason,
       notes: notes || undefined
     })
@@ -54,7 +58,9 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
     // Reset form
     setSelectedProductId("")
     setPackageQuantity(0)
+    setUnitsPerPackage(1)
     setUnitQuantity(0)
+    setPackageType("")
     setReason("")
     setNotes("")
   }
@@ -110,6 +116,59 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
             </div>
           </div>
 
+          {/* Configuração da Embalagem */}
+          {selectedProduct && (
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900">Configuração da Embalagem</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tipo de Embalagem
+                  </label>
+                  <Select value={packageType} onValueChange={setPackageType}>
+                    <SelectTrigger>
+                      <Package className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Selecionar tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Caixa">Caixa</SelectItem>
+                      <SelectItem value="Resma">Resma</SelectItem>
+                      <SelectItem value="Rolo">Rolo</SelectItem>
+                      <SelectItem value="Pacote">Pacote</SelectItem>
+                      <SelectItem value="Fardo">Fardo</SelectItem>
+                      <SelectItem value="Unidade">Unidade</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Unidades por Embalagem
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={unitsPerPackage}
+                    onChange={(e) => setUnitsPerPackage(parseInt(e.target.value) || 1)}
+                    placeholder="1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Quantas unidades vêm em cada {packageType || 'embalagem'}
+                  </p>
+                </div>
+
+                <div className="flex items-end">
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 w-full">
+                    <p className="text-sm text-gray-600 mb-1">Exemplo:</p>
+                    <p className="font-medium text-gray-900">
+                      1 {packageType || 'embalagem'} = {unitsPerPackage} unidade(s)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Informações do produto selecionado */}
           {selectedProduct && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -120,22 +179,12 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
                   <p className="font-medium">{selectedProduct.category?.name}</p>
                 </div>
                 <div>
-                  <span className="text-blue-700">Embalagem:</span>
-                  <p className="font-medium">
-                    {selectedProduct.unitsPerPackage > 1 
-                      ? `${selectedProduct.unitsPerPackage} un/emb`
-                      : 'Individual'
-                    }
-                  </p>
+                  <span className="text-blue-700">Estoque Atual:</span>
+                  <p className="font-medium">{selectedProduct.quantity} unidades</p>
                 </div>
                 <div>
-                  <span className="text-blue-700">Estoque Atual:</span>
-                  <p className="font-medium">
-                    {selectedProduct.unitsPerPackage > 1 ? (() => {
-                      const inventory = calculateInventory(selectedProduct.quantity, selectedProduct.unitsPerPackage)
-                      return `${inventory.packages} emb + ${inventory.remainingUnits} un`
-                    })() : `${selectedProduct.quantity} un`}
-                  </p>
+                  <span className="text-blue-700">Preço:</span>
+                  <p className="font-medium">R$ {selectedProduct.price.toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -148,10 +197,10 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Embalagens */}
-                {selectedProduct.unitsPerPackage > 1 && (
+                {unitsPerPackage > 1 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Quantidade de Embalagens
+                      Quantidade de {packageType || 'Embalagens'}
                     </label>
                     <Input
                       type="number"
@@ -166,9 +215,9 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
                 {/* Unidades */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {selectedProduct.unitsPerPackage > 1 
+                    {unitsPerPackage > 1 
                       ? 'Unidades Avulsas'
-                      : 'Quantidade de Unidades'
+                      : 'Quantidade Total'
                     }
                   </label>
                   <Input
@@ -189,10 +238,10 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
                     <span className="font-medium text-gray-900">Cálculo Total</span>
                   </div>
                   <div className="text-sm text-gray-600">
-                    {selectedProduct.unitsPerPackage > 1 ? (
+                    {unitsPerPackage > 1 ? (
                       <>
                         <p>
-                          {packageQuantity} embalagens × {selectedProduct.unitsPerPackage} un/emb = {packageQuantity * selectedProduct.unitsPerPackage} un
+                          {packageQuantity} {packageType || 'embalagens'} × {unitsPerPackage} un/emb = {packageQuantity * unitsPerPackage} un
                         </p>
                         <p>+ {unitQuantity} unidades avulsas</p>
                         <div className="border-t border-gray-300 mt-2 pt-2">

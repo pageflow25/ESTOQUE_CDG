@@ -255,7 +255,6 @@ export default function ProductsPage() {
                       </TableRow>
                     ) : (
                       filteredProducts.map((product) => {
-                        const inventory = calculateInventory(product.quantity, product.unitsPerPackage)
                         return (
                           <TableRow key={product.id}>
                             <TableCell className="font-medium">{product.code}</TableCell>
@@ -266,27 +265,10 @@ export default function ProductsPage() {
                               </span>
                             </TableCell>
                             <TableCell>
-                              {product.unitsPerPackage > 1 ? (
-                                <span className="text-sm text-gray-600">
-                                  {product.unitsPerPackage} un/emb
-                                </span>
-                              ) : (
-                                <span className="text-sm text-gray-400">Individual</span>
-                              )}
+                              <span className="text-sm text-gray-400">-</span>
                             </TableCell>
                             <TableCell className="text-right">
-                              {product.unitsPerPackage > 1 ? (
-                                <div className="text-sm">
-                                  <div className="font-semibold">
-                                    {inventory.packages} emb + {inventory.remainingUnits} un
-                                  </div>
-                                  <div className="text-gray-500">
-                                    ({inventory.totalUnits} total)
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="font-semibold">{product.quantity} un</span>
-                              )}
+                              <span className="font-semibold">{product.quantity} un</span>
                             </TableCell>
                             <TableCell className="text-right">
                               R$ {product.price.toFixed(2)}
@@ -337,7 +319,6 @@ export default function ProductsPage() {
               </Card>
             ) : (
               filteredProducts.map((product) => {
-                const inventory = calculateInventory(product.quantity, product.unitsPerPackage)
                 return (
                   <Card key={product.id}>
                     <CardContent className="p-4">
@@ -364,30 +345,9 @@ export default function ProductsPage() {
                         </div>
                         
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Embalagem:</span>
-                          <span className="font-medium">
-                            {product.unitsPerPackage > 1 ? 
-                              `${product.unitsPerPackage} un/emb` : 
-                              'Individual'
-                            }
-                          </span>
-                        </div>
-                        
-                        <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Estoque:</span>
                           <div className="text-right">
-                            {product.unitsPerPackage > 1 ? (
-                              <>
-                                <div className="font-semibold">
-                                  {inventory.packages} emb + {inventory.remainingUnits} un
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  ({inventory.totalUnits} total)
-                                </div>
-                              </>
-                            ) : (
-                              <span className="font-semibold">{product.quantity} un</span>
-                            )}
+                            <span className="font-semibold">{product.quantity} un</span>
                           </div>
                         </div>
                         
