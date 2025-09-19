@@ -1,54 +1,32 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
-import { MovementSchema, MovementFiltersSchema } from "@/lib/validations"
-import { authOptions } from "@/lib/auth"
+import { MovementSchema } from "@/lib/validations"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
-    const filters = {
-      productId: searchParams.get("productId") || undefined,
-      type: searchParams.get("type") as "ENTRADA" | "SAIDA" || undefined,
-      startDate: searchParams.get("startDate") ? new Date(searchParams.get("startDate")!) : undefined,
-      endDate: searchParams.get("endDate") ? new Date(searchParams.get("endDate")!) : undefined,
-      reason: searchParams.get("reason") || undefined,
-    }
-
-    const validatedFilters = MovementFiltersSchema.parse(filters)
+    const productId = searchParams.get("productId")
+    const type = searchParams.get("type") as "ENTRADA" | "SAIDA" | null
 
     const where: any = {}
     
-    if (validatedFilters.productId) {
-      where.productId = validatedFilters.productId
+    if (productId) {
+      where.productId = productId
     }
-    if (validatedFilters.type) {
-      where.type = validatedFilters.type
-    }
-    if (validatedFilters.startDate || validatedFilters.endDate) {
-      where.date = {}
-      if (validatedFilters.startDate) {
-        where.date.gte = validatedFilters.startDate
-      }
-      if (validatedFilters.endDate) {
-        where.date.lte = validatedFilters.endDate
-      }
-    }
-    if (validatedFilters.reason) {
-      where.reason = { contains: validatedFilters.reason, mode: 'insensitive' }
+    if (type) {
+      where.type = type
     }
 
     const movements = await prisma.movement.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
       include: {
-        product: true,
+        product: {
+          include: {
+            category: true
+          }
+        }
       },
+      orderBy: { createdAt: 'desc' }
     })
 
     return NextResponse.json(movements)
@@ -63,50 +41,55 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const body = await request.json()
     const validatedData = MovementSchema.parse(body)
 
-    // Calculate total price
-    const totalPrice = validatedData.quantity * validatedData.unitPrice
+    // Buscar produto para validar
+    const product = await prisma.product.findUnique({
+      where: { id: validatedData.productId }
+    })
 
-    // Start a transaction to update both movement and product stock
-    const result = await prisma.$transaction(async (tx: any) => {
-      // Create the movement
-      const movement = await tx.movement.create({
-        data: {
-          ...validatedData,
-          totalPrice,
-          userId: session.user?.id,
-          date: validatedData.date || new Date(),
-        },
-        include: {
-          product: true,
-        },
-      })
+    if (!product) {
+      return NextResponse.json(
+        { error: "Produto não encontrado" },
+        { status: 404 }
+      )
+    }
 
-      // Update product stock
-      const currentProduct = await tx.product.findUnique({
-        where: { id: validatedData.productId },
-      })
-
-      if (!currentProduct) {
-        throw new Error("Product not found")
+    // Calcular nova quantidade do produto
+    let newQuantity = product.quantity
+    if (validatedData.type === "ENTRADA") {
+      newQuantity += validatedData.totalUnits
+    } else {
+      newQuantity -= validatedData.totalUnits
+      
+      // Verificar se há estoque suficiente para saída
+      if (newQuantity < 0) {
+        return NextResponse.json(
+          { error: "Estoque insuficiente" },
+          { status: 400 }
+        )
       }
+    }
 
-      const stockChange = validatedData.type === "ENTRADA" 
-        ? validatedData.quantity 
-        : -validatedData.quantity
+    // Usar transação para criar movimentação e atualizar estoque
+    const result = await prisma.$transaction(async (tx: any) => {
+      // Criar movimentação
+      const movement = await tx.movement.create({
+        data: validatedData,
+        include: {
+          product: {
+            include: {
+              category: true
+            }
+          }
+        }
+      })
 
+      // Atualizar estoque do produto
       await tx.product.update({
         where: { id: validatedData.productId },
-        data: {
-          currentStock: currentProduct.currentStock + stockChange,
-        },
+        data: { quantity: newQuantity }
       })
 
       return movement

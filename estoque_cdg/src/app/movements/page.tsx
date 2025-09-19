@@ -37,70 +37,25 @@ export default function MovementsPage() {
 
   const fetchMovements = async () => {
     try {
-      // Simulação de produtos
-      const mockProducts: Product[] = [
-        {
-          id: "1",
-          name: "Papel A4 Chamex",
-          code: "PAP001",
-          categoryId: "1",
-          unitsPerPackage: 500,
-          quantity: 2300,
-          price: 25.90,
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        },
-        {
-          id: "2",
-          name: "Detergente Líquido",
-          code: "LMP001",
-          categoryId: "2", 
-          unitsPerPackage: 12,
-          quantity: 87,
-          price: 3.50,
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        }
-      ]
+      // Buscar produtos
+      const productsResponse = await fetch('/api/products')
+      if (productsResponse.ok) {
+        const productsData = await productsResponse.json()
+        setProducts(productsData)
+      }
 
-      // Simulação de movimentações com novo formato
-      const mockMovements: Movement[] = [
-        {
-          id: "1",
-          type: "entrada",
-          productId: "1",
-          product: mockProducts[0],
-          packageQuantity: 4, // 4 resmas
-          unitQuantity: 300, // mais 300 folhas avulsas
-          totalUnits: calculateTotalUnits(4, 300, 500), // 2300 folhas total
-          date: "2024-01-15",
-          userId: "user1",
-          user: "João Silva",
-          reason: "Compra",
-          notes: "Fornecedor XYZ",
-          createdAt: "2024-01-15T10:00:00Z"
-        },
-        {
-          id: "2",
-          type: "saida",
-          productId: "2",
-          product: mockProducts[1],
-          packageQuantity: 2, // 2 caixas
-          unitQuantity: 3, // mais 3 unidades avulsas
-          totalUnits: calculateTotalUnits(2, 3, 12), // 27 unidades total
-          date: "2024-01-14",
-          userId: "user2",
-          user: "Maria Santos",
-          reason: "Venda",
-          notes: "Cliente ABC",
-          createdAt: "2024-01-14T14:30:00Z"
-        }
-      ]
-
-      setProducts(mockProducts)
-      setMovements(mockMovements)
+      // Buscar movimentações
+      const movementsResponse = await fetch('/api/movements')
+      if (movementsResponse.ok) {
+        const movementsData = await movementsResponse.json()
+        // Converter formato da API para o formato do frontend
+        const formattedMovements = movementsData.map((mov: any) => ({
+          ...mov,
+          type: mov.type.toLowerCase() as "entrada" | "saida", // ENTRADA -> entrada
+          date: new Date(mov.date).toISOString().split('T')[0] // formato yyyy-mm-dd
+        }))
+        setMovements(formattedMovements)
+      }
     } catch (error) {
       console.error("Erro ao carregar movimentações:", error)
     } finally {
@@ -122,7 +77,7 @@ export default function MovementsPage() {
   const totalEntradas = movements.filter(m => m.type === "entrada").reduce((acc, m) => acc + m.totalUnits, 0)
   const totalSaidas = movements.filter(m => m.type === "saida").reduce((acc, m) => acc + m.totalUnits, 0)
 
-  const handleCreateMovement = (movementData: {
+  const handleCreateMovement = async (movementData: {
     productId: string
     type: "entrada" | "saida"
     packageQuantity: number
@@ -131,38 +86,46 @@ export default function MovementsPage() {
     reason: string
     notes?: string
   }) => {
-    const product = products.find(p => p.id === movementData.productId)
-    
-    if (!product) {
-      console.error('Produto não encontrado')
-      return
-    }
+    try {
+      const response = await fetch('/api/movements', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...movementData,
+          type: movementData.type.toUpperCase(), // entrada -> ENTRADA
+          user: session?.user?.name || 'Usuário Atual',
+        })
+      })
 
-    const movement: Movement = {
-      id: Date.now().toString(),
-      ...movementData,
-      product,
-      date: new Date().toISOString().split('T')[0],
-      userId: session?.user?.id || 'current-user',
-      user: session?.user?.name || 'Usuário Atual',
-      createdAt: new Date().toISOString()
-    }
-
-    setMovements(prev => [movement, ...prev])
-    
-    // Atualizar estoque do produto
-    setProducts(prev => prev.map(p => {
-      if (p.id === movementData.productId) {
-        const newQuantity = movementData.type === "entrada" 
-          ? p.quantity + movementData.totalUnits
-          : p.quantity - movementData.totalUnits
+      if (response.ok) {
+        const newMovement = await response.json()
+        // Converter de volta para o formato do frontend
+        const formattedMovement = {
+          ...newMovement,
+          type: newMovement.type.toLowerCase() as "entrada" | "saida",
+          date: new Date(newMovement.date).toISOString().split('T')[0]
+        }
         
-        return { ...p, quantity: Math.max(0, newQuantity) }
+        setMovements(prev => [formattedMovement, ...prev])
+        
+        // Atualizar lista de produtos para refletir mudança no estoque
+        const updatedProduct = newMovement.product
+        setProducts(prev => prev.map(p => 
+          p.id === updatedProduct.id ? updatedProduct : p
+        ))
+        
+        setShowMovementForm(false)
+        console.log('Movimentação criada:', formattedMovement)
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Erro ao criar movimentação')
       }
-      return p
-    }))
-    
-    console.log('Movimentação criada:', movement)
+    } catch (error) {
+      console.error('Erro na requisição:', error)
+      alert('Erro de conexão')
+    }
   }
 
   if (status === "loading") {

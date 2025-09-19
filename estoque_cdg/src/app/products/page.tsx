@@ -39,82 +39,23 @@ export default function ProductsPage() {
 
   const fetchData = async () => {
     try {
-      // Simulação de dados de categorias
-      const mockCategories: Category[] = [
-        {
-          id: "1",
-          name: "Papelaria",
-          description: "Produtos de papel e escritório",
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        },
-        {
-          id: "2", 
-          name: "Material de Limpeza",
-          description: "Produtos para limpeza e higiene",
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        },
-        {
-          id: "3",
-          name: "Eletrônicos",
-          description: "Equipamentos e acessórios eletrônicos",
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        }
-      ]
+      // Buscar categorias
+      const categoriesResponse = await fetch('/api/categories')
+      if (categoriesResponse.ok) {
+        const categoriesData = await categoriesResponse.json()
+        setCategories(categoriesData)
+      } else {
+        console.error('Erro ao buscar categorias')
+      }
 
-      // Simulação de dados de produtos com embalagens
-      const mockProducts: Product[] = [
-        {
-          id: "1",
-          name: "Papel A4 Chamex",
-          code: "PAP001",
-          description: "Papel A4 branco 75g/m²",
-          categoryId: "1",
-          category: mockCategories[0],
-          unitsPerPackage: 500, // 500 folhas por resma
-          quantity: 2300, // Total de folhas no estoque
-          price: 25.90,
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        },
-        {
-          id: "2",
-          name: "Detergente Líquido",
-          code: "LMP001", 
-          description: "Detergente neutro 500ml",
-          categoryId: "2",
-          category: mockCategories[1],
-          unitsPerPackage: 12, // 12 unidades por caixa
-          quantity: 87, // Total de unidades no estoque
-          price: 3.50,
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        },
-        {
-          id: "3",
-          name: "Mouse Óptico USB",
-          code: "ELE001",
-          description: "Mouse óptico com fio USB",
-          categoryId: "3",
-          category: mockCategories[2],
-          unitsPerPackage: 1, // Vendido individualmente
-          quantity: 15,
-          price: 29.90,
-          isActive: true,
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01"
-        }
-      ]
-
-      setCategories(mockCategories)
-      setProducts(mockProducts)
+      // Buscar produtos
+      const productsResponse = await fetch('/api/products')
+      if (productsResponse.ok) {
+        const productsData = await productsResponse.json()
+        setProducts(productsData)
+      } else {
+        console.error('Erro ao buscar produtos')
+      }
     } catch (error) {
       console.error("Erro ao carregar dados:", error)
     } finally {
@@ -133,26 +74,52 @@ export default function ProductsPage() {
     return matchesSearch && matchesCategory
   })
 
-  const handleCreateProduct = (incoming: any) => {
-    // Se vier com id, é atualização
-    if (incoming.id) {
-      setProducts(prev => prev.map(p => p.id === incoming.id ? { ...p, ...incoming } : p))
-      setEditingProduct(null)
-      setShowProductForm(false)
-      console.log('Produto atualizado:', incoming)
-      return
-    }
+  const handleCreateProduct = async (incoming: any) => {
+    try {
+      if (incoming.id) {
+        // Atualizar produto existente
+        const response = await fetch(`/api/products/${incoming.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(incoming)
+        })
 
-    const product: Product = {
-      ...incoming,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+        if (response.ok) {
+          const updatedProduct = await response.json()
+          setProducts(prev => prev.map(p => p.id === incoming.id ? updatedProduct : p))
+          setEditingProduct(null)
+          setShowProductForm(false)
+          console.log('Produto atualizado:', updatedProduct)
+        } else {
+          const error = await response.json()
+          alert(error.error || 'Erro ao atualizar produto')
+        }
+      } else {
+        // Criar novo produto
+        const response = await fetch('/api/products', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(incoming)
+        })
+
+        if (response.ok) {
+          const newProduct = await response.json()
+          setProducts(prev => [newProduct, ...prev])
+          setShowProductForm(false)
+          console.log('Produto criado:', newProduct)
+        } else {
+          const error = await response.json()
+          alert(error.error || 'Erro ao criar produto')
+        }
+      }
+    } catch (error) {
+      console.error('Erro na requisição:', error)
+      alert('Erro de conexão')
     }
-    
-    setProducts(prev => [...prev, product])
-    setShowProductForm(false)
-    console.log('Produto criado:', product)
   }
 
   const handleEditClick = (product: Product) => {
@@ -160,11 +127,27 @@ export default function ProductsPage() {
     setShowProductForm(true)
   }
 
-  const handleDelete = (productId: string) => {
+  const handleDelete = async (productId: string) => {
     if (!confirm('Tem certeza que deseja excluir este produto?')) {
       return
     }
-    setProducts(prev => prev.filter(p => p.id !== productId))
+
+    try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        setProducts(prev => prev.filter(p => p.id !== productId))
+        console.log('Produto excluído')
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Erro ao excluir produto')
+      }
+    } catch (error) {
+      console.error('Erro na requisição:', error)
+      alert('Erro de conexão')
+    }
   }
 
   if (status === "loading") {

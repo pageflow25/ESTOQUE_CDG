@@ -1,22 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
 import { ProductSchema } from "@/lib/validations"
-import { authOptions } from "@/lib/auth"
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const product = await prisma.product.findUnique({
       where: { id: params.id },
       include: {
+        category: true,
         movements: {
           orderBy: { createdAt: 'desc' },
         },
@@ -24,7 +18,7 @@ export async function GET(
     })
 
     if (!product) {
-      return NextResponse.json({ error: "Product not found" }, { status: 404 })
+      return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 })
     }
 
     return NextResponse.json(product)
@@ -42,17 +36,37 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const body = await request.json()
+    const validatedData = ProductSchema.parse(body)
+
+    // Verificar se produto existe
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: params.id }
+    })
+
+    if (!existingProduct) {
+      return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 })
     }
 
-    const body = await request.json()
-    const validatedData = ProductSchema.partial().parse(body)
+    // Verificar código único (se mudou)
+    if (validatedData.code !== existingProduct.code) {
+      const codeExists = await prisma.product.findUnique({
+        where: { code: validatedData.code }
+      })
+      if (codeExists) {
+        return NextResponse.json(
+          { error: "Já existe um produto com este código" },
+          { status: 400 }
+        )
+      }
+    }
 
     const product = await prisma.product.update({
       where: { id: params.id },
       data: validatedData,
+      include: {
+        category: true
+      }
     })
 
     return NextResponse.json(product)
@@ -82,16 +96,28 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Verificar se há movimentações
+    const productWithMovements = await prisma.product.findUnique({
+      where: { id: params.id },
+      include: { movements: true }
+    })
+
+    if (!productWithMovements) {
+      return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 })
+    }
+
+    if (productWithMovements.movements.length > 0) {
+      return NextResponse.json(
+        { error: "Não é possível excluir produto com movimentações" },
+        { status: 400 }
+      )
     }
 
     await prisma.product.delete({
       where: { id: params.id },
     })
 
-    return NextResponse.json({ message: "Product deleted successfully" })
+    return NextResponse.json({ message: "Produto excluído com sucesso" })
   } catch (error: any) {
     console.error("Error deleting product:", error)
     

@@ -13,37 +13,43 @@ export const LoginSchema = z.object({
   password: z.string().min(1, "Senha é obrigatória"),
 })
 
-export const ProductSchema = z.object({
+export const CategorySchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   description: z.string().optional(),
-  material: z.string().min(1, "Material é obrigatório"),
-  format: z.string().min(1, "Formato é obrigatório"),
-  unit: z.string().min(1, "Unidade é obrigatória"),
-  minStock: z.number().min(0, "Estoque mínimo não pode ser negativo"),
-  currentStock: z.number().min(0, "Estoque atual não pode ser negativo"),
-  unitPrice: z.number().min(0, "Preço unitário não pode ser negativo"),
-  location: z.string().optional(),
-  barcode: z.string().optional(),
-  isActive: z.boolean().optional(),
+  isActive: z.boolean().default(true),
+})
+
+export const ProductSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  code: z.string().min(1, "Código é obrigatório"),
+  description: z.string().optional(),
+  categoryId: z.string().min(1, "Categoria é obrigatória"),
+  unitsPerPackage: z.number().int().min(1, "Unidades por embalagem deve ser maior que 0"),
+  quantity: z.number().int().min(0, "Quantidade não pode ser negativa"),
+  price: z.number().min(0, "Preço não pode ser negativo"),
+  isActive: z.boolean().default(true),
 })
 
 export const MovementSchema = z.object({
   id: z.string().optional(),
   productId: z.string().min(1, "Produto é obrigatório"),
   type: z.enum(["ENTRADA", "SAIDA"]),
-  quantity: z.number().min(1, "Quantidade deve ser maior que zero"),
-  unitPrice: z.number().min(0, "Preço unitário não pode ser negativo"),
+  packageQuantity: z.number().int().min(0, "Quantidade de embalagens não pode ser negativa"),
+  unitQuantity: z.number().int().min(0, "Quantidade de unidades não pode ser negativa"),
+  totalUnits: z.number().int().min(1, "Total de unidades deve ser maior que zero"),
   reason: z.string().min(1, "Motivo é obrigatório"),
-  reference: z.string().optional(),
+  notes: z.string().optional(),
   date: z.date().optional(),
   userId: z.string().optional(),
+  user: z.string().default("Sistema"),
 })
 
 export const ProductFiltersSchema = z.object({
   name: z.string().optional(),
-  material: z.string().optional(),
-  format: z.string().optional(),
+  code: z.string().optional(),
+  categoryId: z.string().optional(),
   isActive: z.boolean().optional(),
   lowStock: z.boolean().optional(),
 })

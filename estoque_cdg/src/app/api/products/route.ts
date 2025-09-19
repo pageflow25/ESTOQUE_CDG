@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
 import { ProductSchema, ProductFiltersSchema } from "@/lib/validations"
-import { authOptions } from "@/lib/auth"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const filters = {
       name: searchParams.get("name") || undefined,
-      material: searchParams.get("material") || undefined,
-      format: searchParams.get("format") || undefined,
+      code: searchParams.get("code") || undefined,
+      categoryId: searchParams.get("categoryId") || undefined,
       isActive: searchParams.get("isActive") ? searchParams.get("isActive") === "true" : undefined,
       lowStock: searchParams.get("lowStock") ? searchParams.get("lowStock") === "true" : undefined,
     }
@@ -27,23 +20,24 @@ export async function GET(request: NextRequest) {
     if (validatedFilters.name) {
       where.name = { contains: validatedFilters.name, mode: 'insensitive' }
     }
-    if (validatedFilters.material) {
-      where.material = { contains: validatedFilters.material, mode: 'insensitive' }
+    if (validatedFilters.code) {
+      where.code = { contains: validatedFilters.code, mode: 'insensitive' }
     }
-    if (validatedFilters.format) {
-      where.format = { contains: validatedFilters.format, mode: 'insensitive' }
+    if (validatedFilters.categoryId) {
+      where.categoryId = validatedFilters.categoryId
     }
     if (validatedFilters.isActive !== undefined) {
       where.isActive = validatedFilters.isActive
     }
     if (validatedFilters.lowStock) {
-      where.currentStock = { lte: where.minStock || 0 }
+      where.quantity = { lte: 10 } // Considera baixo estoque <= 10 unidades
     }
 
     const products = await prisma.product.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
+        category: true,
         movements: {
           orderBy: { createdAt: 'desc' },
           take: 5,
@@ -63,16 +57,26 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const body = await request.json()
     const validatedData = ProductSchema.parse(body)
 
+    // Verificar se código já existe
+    const existingProduct = await prisma.product.findUnique({
+      where: { code: validatedData.code }
+    })
+
+    if (existingProduct) {
+      return NextResponse.json(
+        { error: "Já existe um produto com este código" },
+        { status: 400 }
+      )
+    }
+
     const product = await prisma.product.create({
       data: validatedData,
+      include: {
+        category: true
+      }
     })
 
     return NextResponse.json(product, { status: 201 })
