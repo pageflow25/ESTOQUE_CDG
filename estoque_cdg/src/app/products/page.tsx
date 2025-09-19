@@ -22,6 +22,7 @@ export default function ProductsPage() {
   const [filterCategory, setFilterCategory] = useState("all")
   const [isLoading, setIsLoading] = useState(true)
   const [showProductForm, setShowProductForm] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
 
   useEffect(() => {
     if (status === "loading") {
@@ -132,16 +133,38 @@ export default function ProductsPage() {
     return matchesSearch && matchesCategory
   })
 
-  const handleCreateProduct = (newProduct: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleCreateProduct = (incoming: any) => {
+    // Se vier com id, é atualização
+    if (incoming.id) {
+      setProducts(prev => prev.map(p => p.id === incoming.id ? { ...p, ...incoming } : p))
+      setEditingProduct(null)
+      setShowProductForm(false)
+      console.log('Produto atualizado:', incoming)
+      return
+    }
+
     const product: Product = {
-      ...newProduct,
+      ...incoming,
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
     
     setProducts(prev => [...prev, product])
+    setShowProductForm(false)
     console.log('Produto criado:', product)
+  }
+
+  const handleEditClick = (product: Product) => {
+    setEditingProduct(product)
+    setShowProductForm(true)
+  }
+
+  const handleDelete = (productId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este produto?')) {
+      return
+    }
+    setProducts(prev => prev.filter(p => p.id !== productId))
   }
 
   if (status === "loading") {
@@ -296,10 +319,10 @@ export default function ProductsPage() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
-                                <Button variant="outline" size="sm">
+                                <Button variant="outline" size="sm" onClick={() => handleEditClick(product)}>
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button variant="outline" size="sm">
+                                <Button variant="outline" size="sm" onClick={() => handleDelete(product.id)}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
@@ -392,11 +415,11 @@ export default function ProductsPage() {
                       </div>
                       
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="flex-1">
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(product)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Editar
                         </Button>
-                        <Button variant="outline" size="sm" className="flex-1">
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleDelete(product.id)}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Excluir
                         </Button>
@@ -412,8 +435,9 @@ export default function ProductsPage() {
         {/* Product Form Modal */}
         <ProductForm
           isOpen={showProductForm}
-          onClose={() => setShowProductForm(false)}
+          onClose={() => { setShowProductForm(false); setEditingProduct(null) }}
           categories={categories}
+          initialProduct={editingProduct}
           onSubmit={handleCreateProduct}
         />
       </div>

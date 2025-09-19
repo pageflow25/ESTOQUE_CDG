@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Package, Tag, DollarSign } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -12,20 +12,36 @@ interface ProductFormProps {
   isOpen: boolean
   onClose: () => void
   categories: Category[]
-  onSubmit: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void
+  // initialProduct: quando fornecido, o formulário entra em modo editar
+  initialProduct?: Product | null
+  onSubmit: (product: Product | Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void
 }
 
-export function ProductForm({ isOpen, onClose, categories, onSubmit }: ProductFormProps) {
-  const [formData, setFormData] = useState({
-    name: '',
-    code: '',
-    description: '',
-    categoryId: '',
-    unitsPerPackage: 1,
-    quantity: 0,
-    price: 0,
-    isActive: true
-  })
+export function ProductForm({ isOpen, onClose, categories, initialProduct = null, onSubmit }: ProductFormProps) {
+  const [formData, setFormData] = useState(() => ({
+    name: initialProduct?.name || '',
+    code: initialProduct?.code || '',
+    description: initialProduct?.description || '',
+    categoryId: initialProduct?.categoryId || '',
+    unitsPerPackage: initialProduct?.unitsPerPackage ?? 1,
+    quantity: initialProduct?.quantity ?? 0,
+    price: initialProduct?.price ?? 0,
+    isActive: initialProduct?.isActive ?? true
+  }))
+
+  useEffect(() => {
+    // quando initialProduct muda, atualiza o formulário
+    setFormData({
+      name: initialProduct?.name || '',
+      code: initialProduct?.code || '',
+      description: initialProduct?.description || '',
+      categoryId: initialProduct?.categoryId || '',
+      unitsPerPackage: initialProduct?.unitsPerPackage ?? 1,
+      quantity: initialProduct?.quantity ?? 0,
+      price: initialProduct?.price ?? 0,
+      isActive: initialProduct?.isActive ?? true
+    })
+  }, [initialProduct])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,12 +51,24 @@ export function ProductForm({ isOpen, onClose, categories, onSubmit }: ProductFo
       return
     }
 
-    onSubmit({
+    const payload: any = {
       ...formData,
-      category: categories.find(c => c.id === formData.categoryId)
-    })
+      category: categories.find(c => c.id === formData.categoryId) || undefined
+    }
 
-    // Reset form
+    // se estamos editando, mantenha o id
+    if (initialProduct) {
+      const updated: Product = {
+        ...initialProduct,
+        ...payload,
+        updatedAt: new Date().toISOString()
+      }
+      onSubmit(updated)
+    } else {
+      onSubmit(payload)
+    }
+
+    // Reset form para estado inicial (novo)
     setFormData({
       name: '',
       code: '',
