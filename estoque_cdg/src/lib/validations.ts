@@ -25,7 +25,7 @@ export const ProductSchema = z.object({
   unitPrice: z.number().min(0, "Preço unitário não pode ser negativo"),
   location: z.string().optional(),
   barcode: z.string().optional(),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean().optional(),
 })
 
 export const MovementSchema = z.object({
