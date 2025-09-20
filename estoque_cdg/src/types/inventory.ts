@@ -24,6 +24,7 @@ export interface Product {
   categoryId: string
   category?: Category
   quantity: number // Quantidade total em unidades
+  packageType?: string // Tipo de embalagem fixa por produto
   price: number
   isActive: boolean
   createdAt: string
@@ -40,7 +41,7 @@ export interface Movement {
   unitsPerPackage: number // Quantas unidades tem em cada embalagem (variável por movimentação)
   unitQuantity: number // Unidades individuais (avulsas)
   totalUnits: number // Total calculado: (packageQuantity * unitsPerPackage) + unitQuantity
-  packageType?: string // Tipo da embalagem: "Caixa", "Resma", "Rolo", etc.
+  // packageType não é fornecido pela movimentação, usar o packageType do Product quando necessário
   // Dados adicionais
   date: string
   userId: string
@@ -98,5 +99,6 @@ export function displayStock(product: Product, lastMovement?: Movement): string 
   }
 
   const calc = calculateInventory(product.quantity, lastMovement.unitsPerPackage)
-  return `${calc.packages} ${lastMovement.packageType || 'emb'} + ${calc.remainingUnits} un (${calc.totalUnits} total)`
+  const packageLabel = product.packageType || 'emb'
+  return `${calc.packages} ${packageLabel} + ${calc.remainingUnits} un (${calc.totalUnits} total)`
 }

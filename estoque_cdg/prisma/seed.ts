@@ -48,6 +48,7 @@ async function main() {
       categoryName: 'Papel',
       currentStock: 50,
       unitPrice: 25.90,
+      packageType: 'Resma',
     },
     {
       name: 'Tinta HP 664 Preta',
@@ -56,6 +57,7 @@ async function main() {
       categoryName: 'Tinta',
       currentStock: 15,
       unitPrice: 89.90,
+      packageType: 'Unidade',
     },
     {
       name: 'Papel Fotográfico A4',
@@ -64,6 +66,7 @@ async function main() {
       categoryName: 'Papel Fotográfico',
       currentStock: 8,
       unitPrice: 35.50,
+      packageType: 'Pacote',
     },
   ]
 
@@ -85,6 +88,7 @@ async function main() {
       description: productData.description,
       quantity: productData.currentStock ?? 0,
       price: productData.unitPrice ?? 0,
+      packageType: productData.packageType || 'Unidade',
       isActive: true,
     }
 

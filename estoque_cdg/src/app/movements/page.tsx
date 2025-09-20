@@ -291,7 +291,7 @@ export default function MovementsPage() {
                             {movement.type === "entrada" ? "+" : "-"}
                             {movement.unitsPerPackage && movement.unitsPerPackage > 1 ? (
                               <>
-                                <div>{movement.packageQuantity} {movement.packageType} + {movement.unitQuantity} un</div>
+                                <div>{movement.packageQuantity} {movement.product?.packageType || 'emb'} + {movement.unitQuantity} un</div>
                                 <div className="text-xs opacity-75">({movement.totalUnits} total)</div>
                               </>
                             ) : (

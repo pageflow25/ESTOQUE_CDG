@@ -108,7 +108,7 @@ export default function StockPage() {
       const { status } = getStockStatus(p.quantity)
       return status === "low"
     }).length,
-    totalValue: products.reduce((acc, p) => acc + (p.quantity * p.price), 0)
+    // totalValue removido — não exibimos valores monetários nesta tela
   }
 
   if (status === "loading") {
@@ -182,21 +182,7 @@ export default function StockPage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <BarChart3 className="h-8 w-8 text-green-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Valor Total</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      R$ {stats.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Valor total removido — tela foca apenas em estoque */}
           </div>
 
           {/* Filters */}
@@ -262,28 +248,25 @@ export default function StockPage() {
                       <TableHead>Categoria</TableHead>
                       <TableHead>Embalagem</TableHead>
                       <TableHead className="text-right">Estoque Atual</TableHead>
-                      <TableHead className="text-right">Valor Unit.</TableHead>
-                      <TableHead className="text-right">Valor Total</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">
+                        <TableCell colSpan={5} className="text-center py-8">
                           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto"></div>
                         </TableCell>
                       </TableRow>
                     ) : filteredProducts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                           Nenhum produto encontrado
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredProducts.map((product) => {
                         const stockStatus = getStockStatus(product.quantity)
-                        const totalValue = product.quantity * product.price
                         
                         return (
                           <TableRow key={product.id}>
@@ -304,12 +287,7 @@ export default function StockPage() {
                             <TableCell className="text-right">
                               <span className="font-semibold">{product.quantity} un</span>
                             </TableCell>
-                            <TableCell className="text-right">
-                              R$ {product.price.toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-right font-semibold">
-                              R$ {totalValue.toFixed(2)}
-                            </TableCell>
+                            {/* preços removidos */}
                             <TableCell>
                               <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
                                 stockStatus.status === 'out' ? 'bg-red-100 text-red-800' :
@@ -347,7 +325,6 @@ export default function StockPage() {
             ) : (
               filteredProducts.map((product) => {
                 const stockStatus = getStockStatus(product.quantity)
-                const totalValue = product.quantity * product.price
                 
                 return (
                   <Card key={product.id}>
@@ -381,10 +358,7 @@ export default function StockPage() {
                           </div>
                         </div>
                         
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Valor Total:</span>
-                          <span className="font-semibold">R$ {totalValue.toFixed(2)}</span>
-                        </div>
+                        {/* Valor total removido do cartão mobile */}
                       </div>
                     </CardContent>
                   </Card>

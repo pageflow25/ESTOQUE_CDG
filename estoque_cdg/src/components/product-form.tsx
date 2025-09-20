@@ -23,6 +23,7 @@ export function ProductForm({ isOpen, onClose, categories, initialProduct = null
     code: initialProduct?.code || '',
     description: initialProduct?.description || '',
     categoryId: initialProduct?.categoryId || '',
+    packageType: initialProduct?.packageType || 'Unidade',
     quantity: initialProduct?.quantity ?? 0,
     price: initialProduct?.price ?? 0,
     isActive: initialProduct?.isActive ?? true
@@ -35,6 +36,7 @@ export function ProductForm({ isOpen, onClose, categories, initialProduct = null
       code: initialProduct?.code || '',
       description: initialProduct?.description || '',
       categoryId: initialProduct?.categoryId || '',
+      packageType: initialProduct?.packageType || 'Unidade',
       quantity: initialProduct?.quantity ?? 0,
       price: initialProduct?.price ?? 0,
       isActive: initialProduct?.isActive ?? true
@@ -72,6 +74,7 @@ export function ProductForm({ isOpen, onClose, categories, initialProduct = null
       code: '',
       description: '',
       categoryId: '',
+      packageType: 'Unidade',
       quantity: 0,
       price: 0,
       isActive: true
@@ -187,6 +190,27 @@ export function ProductForm({ isOpen, onClose, categories, initialProduct = null
               />
             </div>
           </div>
+        </div>
+
+        {/* Tipo de Embalagem fixa por produto */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Tipo de Embalagem (fixo por produto)
+          </label>
+          <Select value={formData.packageType} onValueChange={(v) => handleChange('packageType', v)}>
+            <SelectTrigger>
+              <Package className="h-4 w-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Caixa">Caixa</SelectItem>
+              <SelectItem value="Resma">Resma</SelectItem>
+              <SelectItem value="Rolo">Rolo</SelectItem>
+              <SelectItem value="Pacote">Pacote</SelectItem>
+              <SelectItem value="Fardo">Fardo</SelectItem>
+              <SelectItem value="Unidade">Unidade</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
 

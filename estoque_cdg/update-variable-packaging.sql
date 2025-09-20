@@ -21,17 +21,17 @@ BEGIN
         RAISE NOTICE 'Coluna unitsPerPackage já existe na tabela Movement';
     END IF;
     
-    -- Adicionar coluna packageType se não existir  
+    -- Garantir que Product tenha packageType (fixo por produto)
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'Movement' 
+        WHERE table_name = 'Product' 
         AND column_name = 'packageType'
         AND table_schema = 'public'
     ) THEN
-        ALTER TABLE "Movement" ADD COLUMN "packageType" TEXT NOT NULL DEFAULT 'unidade';
-        RAISE NOTICE 'Coluna packageType adicionada à tabela Movement';
+        ALTER TABLE "Product" ADD COLUMN "packageType" TEXT NOT NULL DEFAULT 'Unidade';
+        RAISE NOTICE 'Coluna packageType adicionada à tabela Product';
     ELSE
-        RAISE NOTICE 'Coluna packageType já existe na tabela Movement';
+        RAISE NOTICE 'Coluna packageType já existe na tabela Product';
     END IF;
 END $$;
 
@@ -39,41 +39,28 @@ END $$;
 -- Primeiro, vamos verificar se existe a coluna unitsPerPackage na tabela Product
 DO $$
 BEGIN
-    IF EXISTS (
+    -- Garantir que Movement tenha unitsPerPackage
+    IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'Product' 
+        WHERE table_name = 'Movement' 
         AND column_name = 'unitsPerPackage'
         AND table_schema = 'public'
     ) THEN
-        -- Se existe, usar os valores do produto para atualizar movimentos
-        UPDATE "Movement" 
-        SET 
-            "unitsPerPackage" = COALESCE(p."unitsPerPackage", 1),
-            "packageType" = COALESCE(p."packageType", 'unidade')
-        FROM "Product" p 
-        WHERE "Movement"."productId" = p."id"
-        AND ("Movement"."unitsPerPackage" = 1 OR "Movement"."packageType" = 'unidade');
-        
-        RAISE NOTICE 'Movimentos atualizados com dados dos produtos';
+        ALTER TABLE "Movement" ADD COLUMN "unitsPerPackage" INTEGER NOT NULL DEFAULT 1;
+        RAISE NOTICE 'Coluna unitsPerPackage adicionada à tabela Movement';
     ELSE
-        -- Se não existe, usar valores padrão inteligentes baseados no nome do produto
-        UPDATE "Movement" 
-        SET 
-            "unitsPerPackage" = CASE 
-                WHEN EXISTS (SELECT 1 FROM "Product" p WHERE p."id" = "Movement"."productId" AND p."name" ILIKE '%papel%A4%') THEN 500
-                WHEN EXISTS (SELECT 1 FROM "Product" p WHERE p."id" = "Movement"."productId" AND p."name" ILIKE '%detergente%') THEN 12
-                WHEN EXISTS (SELECT 1 FROM "Product" p WHERE p."id" = "Movement"."productId" AND p."name" ILIKE '%sabao%') THEN 20
-                ELSE 1
-            END,
-            "packageType" = CASE 
-                WHEN EXISTS (SELECT 1 FROM "Product" p WHERE p."id" = "Movement"."productId" AND p."name" ILIKE '%papel%A4%') THEN 'resma'
-                WHEN EXISTS (SELECT 1 FROM "Product" p WHERE p."id" = "Movement"."productId" AND p."name" ILIKE '%detergente%') THEN 'caixa'
-                WHEN EXISTS (SELECT 1 FROM "Product" p WHERE p."id" = "Movement"."productId" AND p."name" ILIKE '%sabao%') THEN 'pacote'
-                ELSE 'unidade'
-            END
-        WHERE "unitsPerPackage" = 1 AND "packageType" = 'unidade';
-        
-        RAISE NOTICE 'Movimentos atualizados com valores padrão baseados no nome do produto';
+        RAISE NOTICE 'Coluna unitsPerPackage já existe na tabela Movement';
+    END IF;
+
+    -- Copiar packageType dos produtos para movimentos onde fizer sentido (opcional)
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'Movement' AND column_name = 'packageType' AND table_schema = 'public') THEN
+        -- Se a coluna packageType ainda existir em Movement, popular a partir do Product
+        UPDATE "Movement" m
+        SET "packageType" = COALESCE(p."packageType", 'Unidade')
+        FROM "Product" p
+        WHERE m."productId" = p."id"
+        AND (m."packageType" IS NULL OR m."packageType" = '' OR m."packageType" = 'unidade');
+        RAISE NOTICE 'Movimentos atualizados com packageType dos produtos quando aplicável';
     END IF;
 END $$;
 
@@ -126,25 +113,52 @@ BEGIN
     RAISE NOTICE 'Categories: % registros', category_count;
 END $$;
 
--- Mostrar estrutura das colunas relevantes
 SELECT 
-    table_name,
-    column_name,
-    data_type,
-    is_nullable,
-    column_default
+        table_name,
+        column_name,
+        data_type,
+        is_nullable,
+        column_default
 FROM information_schema.columns 
-WHERE table_name IN ('Product', 'Movement', 'Category')
-AND table_schema = 'public'
-AND column_name IN ('unitsPerPackage', 'packageType', 'totalUnits', 'packageQuantity')
+WHERE table_schema = 'public'
+    AND table_name IN ('Product', 'Movement', 'Category')
+    AND column_name IN ('unitsPerPackage', 'packageType', 'totalUnits', 'packageQuantity')
 ORDER BY table_name, ordinal_position;
 
-COMMIT;
+-- Exibir alguns movimentos para validação de forma segura (não referencia packageType se não existir)
+DO $$
+DECLARE
+    r RECORD;
+    has_pkg boolean;
+BEGIN
+    SELECT EXISTS(
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'Movement' AND column_name = 'packageType'
+    ) INTO has_pkg;
 
--- Para executar este script:
--- 1. Abra o SQL Editor no Supabase Dashboard
--- 2. Cole este script completo
--- 3. Execute
--- 
--- Ou via psql:
--- psql "sua-connection-string" -f update-variable-packaging.sql
+    IF has_pkg THEN
+        RAISE NOTICE 'Mostrando 10 movimentos (inclui packageType):';
+        FOR r IN
+            SELECT "id"::text AS id, "productId"::text AS productId, COALESCE("packageQuantity",0)::text AS packageQuantity,
+                         COALESCE("unitsPerPackage",1)::text AS unitsPerPackage, COALESCE("unitQuantity",0)::text AS unitQuantity,
+                         COALESCE("totalUnits",0)::text AS totalUnits, COALESCE("packageType",'')::text AS packageType
+            FROM "Movement"
+            ORDER BY "createdAt" DESC
+            LIMIT 10
+        LOOP
+            RAISE NOTICE '% | % | % | % | % | % | %', r.id, r.productid, r.packagequantity, r.unitsperpackage, r.unitquantity, r.totalunits, r.packagetype;
+        END LOOP;
+    ELSE
+        RAISE NOTICE 'Mostrando 10 movimentos (sem packageType):';
+        FOR r IN
+            SELECT "id"::text AS id, "productId"::text AS productId, COALESCE("packageQuantity",0)::text AS packageQuantity,
+                         COALESCE("unitsPerPackage",1)::text AS unitsPerPackage, COALESCE("unitQuantity",0)::text AS unitQuantity,
+                         COALESCE("totalUnits",0)::text AS totalUnits
+            FROM "Movement"
+            ORDER BY "createdAt" DESC
+            LIMIT 10
+        LOOP
+            RAISE NOTICE '% | % | % | % | % | %', r.id, r.productid, r.packagequantity, r.unitsperpackage, r.unitquantity, r.totalunits;
+        END LOOP;
+    END IF;
+END $$;

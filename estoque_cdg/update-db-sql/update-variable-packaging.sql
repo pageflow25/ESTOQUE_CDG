@@ -17,15 +17,37 @@ BEGIN
   ELSE
     RAISE NOTICE 'Coluna unitsPerPackage já existe em movements';
   END IF;
-
+  -- Garantir que products tenham packageType (fixo por produto)
   IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'products' AND column_name = 'packageType'
+  ) THEN
+    ALTER TABLE "products" ADD COLUMN "packageType" text NOT NULL DEFAULT 'Unidade';
+    RAISE NOTICE 'Coluna packageType adicionada em products';
+  ELSE
+    RAISE NOTICE 'Coluna packageType já existe em products';
+  END IF;
+
+  -- Se movements ainda tem packageType (de migrações anteriores), copiar para products quando aplicável e depois remover de movements
+  IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'movements' AND column_name = 'packageType'
   ) THEN
-    ALTER TABLE "movements" ADD COLUMN "packageType" text NOT NULL DEFAULT 'unidade';
-    RAISE NOTICE 'Coluna packageType adicionada em movements';
-  ELSE
-    RAISE NOTICE 'Coluna packageType já existe em movements';
+    -- Copiar valores de movements -> products quando product.packageType é default
+    UPDATE "products" p
+    SET "packageType" = m."packageType"
+    FROM (
+      SELECT DISTINCT ON ("productId") "productId", "packageType"
+      FROM "movements"
+      WHERE "packageType" IS NOT NULL AND "packageType" <> ''
+      ORDER BY "productId", "createdAt" DESC
+    ) m
+    WHERE p.id = m."productId"
+      AND (p."packageType" IS NULL OR p."packageType" = 'Unidade');
+
+    -- Agora remover a coluna packageType de movements (se estiver presente)
+    ALTER TABLE IF EXISTS "movements" DROP COLUMN IF EXISTS "packageType";
+    RAISE NOTICE 'Coluna packageType copiada para products e removida de movements';
   END IF;
 END $$;
 
@@ -39,11 +61,13 @@ BEGIN
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'products' AND column_name = 'unitsPerPackage'
   ) THEN
+    -- Se products tem unitsPerPackage, copiamos para movements.
+    -- Mas somente referência de movements.packageType se essa coluna existir.
     IF EXISTS (
       SELECT 1 FROM information_schema.columns
-      WHERE table_schema = 'public' AND table_name = 'products' AND column_name = 'packageType'
+      WHERE table_schema = 'public' AND table_name = 'movements' AND column_name = 'packageType'
     ) THEN
-      -- products tem unitsPerPackage e packageType
+      -- movements possui packageType: atualizar unitsPerPackage e packageType a partir de products
       UPDATE "movements" m
       SET "unitsPerPackage" = COALESCE(p."unitsPerPackage", 1),
           "packageType" = COALESCE(p."packageType", 'unidade')
@@ -51,13 +75,12 @@ BEGIN
       WHERE m."productId" = p.id
         AND (m."unitsPerPackage" IS NULL OR m."unitsPerPackage" = 1 OR m."packageType" IS NULL OR m."packageType" = 'unidade');
     ELSE
-      -- products tem apenas unitsPerPackage (packageType não existe)
+      -- movements não possui packageType: atualizar apenas unitsPerPackage
       UPDATE "movements" m
-      SET "unitsPerPackage" = COALESCE(p."unitsPerPackage", 1),
-          "packageType" = 'unidade'
+      SET "unitsPerPackage" = COALESCE(p."unitsPerPackage", 1)
       FROM "products" p
       WHERE m."productId" = p.id
-        AND (m."unitsPerPackage" IS NULL OR m."unitsPerPackage" = 1 OR m."packageType" IS NULL OR m."packageType" = 'unidade');
+        AND (m."unitsPerPackage" IS NULL OR m."unitsPerPackage" = 1);
     END IF;
 
     RAISE NOTICE 'Movements atualizados a partir de products (quando aplicável)';
@@ -103,9 +126,41 @@ SELECT COUNT(*) as products_count FROM "products";
 SELECT COUNT(*) as movements_count FROM "movements";
 
 -- Exibir alguns movimentos para validação
-SELECT "id", "productId", "packageQuantity", "unitsPerPackage", "unitQuantity", "totalUnits", "packageType"
-FROM "movements"
-ORDER BY "createdAt" DESC
-LIMIT 10;
+DO $$
+DECLARE
+  r RECORD;
+  has_pkg boolean;
+BEGIN
+  SELECT EXISTS(
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'movements' AND column_name = 'packageType'
+  ) INTO has_pkg;
+
+  IF has_pkg THEN
+    RAISE NOTICE 'Mostrando 10 movimentos (inclui packageType):';
+    FOR r IN
+      SELECT id::text AS id, "productId"::text AS productId, COALESCE("packageQuantity",0)::text AS packageQuantity,
+             COALESCE("unitsPerPackage",1)::text AS unitsPerPackage, COALESCE("unitQuantity",0)::text AS unitQuantity,
+             COALESCE("totalUnits",0)::text AS totalUnits, COALESCE("packageType",'')::text AS packageType
+      FROM "movements"
+      ORDER BY "createdAt" DESC
+      LIMIT 10
+    LOOP
+      RAISE NOTICE '% | % | % | % | % | % | %', r.id, r.productid, r.packagequantity, r.unitsperpackage, r.unitquantity, r.totalunits, r.packagetype;
+    END LOOP;
+  ELSE
+    RAISE NOTICE 'Mostrando 10 movimentos (sem packageType):';
+    FOR r IN
+      SELECT id::text AS id, "productId"::text AS productId, COALESCE("packageQuantity",0)::text AS packageQuantity,
+             COALESCE("unitsPerPackage",1)::text AS unitsPerPackage, COALESCE("unitQuantity",0)::text AS unitQuantity,
+             COALESCE("totalUnits",0)::text AS totalUnits
+      FROM "movements"
+      ORDER BY "createdAt" DESC
+      LIMIT 10
+    LOOP
+      RAISE NOTICE '% | % | % | % | % | %', r.id, r.productid, r.packagequantity, r.unitsperpackage, r.unitquantity, r.totalunits;
+    END LOOP;
+  END IF;
+END $$;
 
 -- FIM

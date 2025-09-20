@@ -17,7 +17,6 @@ interface MovementFormProps {
     unitsPerPackage: number
     unitQuantity: number
     totalUnits: number
-    packageType?: string
     reason: string
     notes?: string
   }) => void
@@ -29,7 +28,7 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
   const [packageQuantity, setPackageQuantity] = useState(0)
   const [unitsPerPackage, setUnitsPerPackage] = useState(1)
   const [unitQuantity, setUnitQuantity] = useState(0)
-  const [packageType, setPackageType] = useState("")
+  // packageType é fixo no Product; não mantemos no formulário de movimentação
   const [reason, setReason] = useState("")
   const [notes, setNotes] = useState("")
 
@@ -50,7 +49,7 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
       unitsPerPackage,
       unitQuantity,
       totalUnits,
-      packageType: packageType || undefined,
+      // packageType não é enviado, é propriedade do produto
       reason,
       notes: notes || undefined
     })
@@ -60,7 +59,7 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
     setPackageQuantity(0)
     setUnitsPerPackage(1)
     setUnitQuantity(0)
-    setPackageType("")
+    // packageType não armazenado no formulário
     setReason("")
     setNotes("")
   }
@@ -116,34 +115,21 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
             </div>
           </div>
 
-          {/* Configuração da Embalagem */}
+          {/* Configuração da Embalagem (produto define tipo fixo) */}
           {selectedProduct && (
             <div className="space-y-4">
               <h4 className="font-medium text-gray-900">Configuração da Embalagem</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipo de Embalagem
+                    Tipo de Embalagem (do produto)
                   </label>
-                  <Select value={packageType} onValueChange={setPackageType}>
-                    <SelectTrigger>
-                      <Package className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Selecionar tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Caixa">Caixa</SelectItem>
-                      <SelectItem value="Resma">Resma</SelectItem>
-                      <SelectItem value="Rolo">Rolo</SelectItem>
-                      <SelectItem value="Pacote">Pacote</SelectItem>
-                      <SelectItem value="Fardo">Fardo</SelectItem>
-                      <SelectItem value="Unidade">Unidade</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="px-3 py-2 border rounded-md bg-gray-50">{selectedProduct.packageType || 'Unidade'}</div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Unidades por Embalagem
+                    Unidades por Embalagem (para esta movimentação)
                   </label>
                   <Input
                     type="number"
@@ -153,7 +139,7 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
                     placeholder="1"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Quantas unidades vêm em cada {packageType || 'embalagem'}
+                    Quantas unidades vêm em cada {selectedProduct.packageType || 'embalagem'} (pode variar por movimentação)
                   </p>
                 </div>
 
@@ -161,7 +147,7 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 w-full">
                     <p className="text-sm text-gray-600 mb-1">Exemplo:</p>
                     <p className="font-medium text-gray-900">
-                      1 {packageType || 'embalagem'} = {unitsPerPackage} unidade(s)
+                      1 {selectedProduct.packageType || 'embalagem'} = {unitsPerPackage} unidade(s)
                     </p>
                   </div>
                 </div>
@@ -200,7 +186,7 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
                 {unitsPerPackage > 1 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Quantidade de {packageType || 'Embalagens'}
+                      Quantidade de {selectedProduct?.packageType || 'Embalagens'}
                     </label>
                     <Input
                       type="number"
@@ -241,7 +227,7 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
                     {unitsPerPackage > 1 ? (
                       <>
                         <p>
-                          {packageQuantity} {packageType || 'embalagens'} × {unitsPerPackage} un/emb = {packageQuantity * unitsPerPackage} un
+                          {packageQuantity} {selectedProduct?.packageType || 'embalagens'} × {unitsPerPackage} un/emb = {packageQuantity * unitsPerPackage} un
                         </p>
                         <p>+ {unitQuantity} unidades avulsas</p>
                         <div className="border-t border-gray-300 mt-2 pt-2">

@@ -265,7 +265,7 @@ export default function ProductsPage() {
                               </span>
                             </TableCell>
                             <TableCell>
-                              <span className="text-sm text-gray-400">-</span>
+                              <span className="text-sm text-gray-700">{product.packageType || 'Unidade'}</span>
                             </TableCell>
                             <TableCell className="text-right">
                               <span className="font-semibold">{product.quantity} un</span>
@@ -349,6 +349,11 @@ export default function ProductsPage() {
                           <div className="text-right">
                             <span className="font-semibold">{product.quantity} un</span>
                           </div>
+                        </div>
+
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Embalagem:</span>
+                          <span className="font-medium">{product.packageType || 'Unidade'}</span>
                         </div>
                         
                         <div className="flex justify-between text-sm">
